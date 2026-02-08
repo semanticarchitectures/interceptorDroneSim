@@ -15,6 +15,8 @@ from interceptor_sim.utils.geometry import distance
 def plot_trajectories(
     history: SimHistory,
     sensor_position: np.ndarray | None = None,
+    launch_position: np.ndarray | None = None,
+    protected_asset_position: np.ndarray | None = None,
     save_path: str | Path | None = None,
 ) -> None:
     """Plot 2D trajectories of target and interceptor."""
@@ -26,6 +28,15 @@ def plot_trajectories(
 
     ax.plot(tgt_pos[:, 0], tgt_pos[:, 1], "r-", linewidth=2, label="Target")
     ax.plot(int_pos[:, 0], int_pos[:, 1], "b-", linewidth=2, label="Interceptor")
+
+    # Estimated target track (dashed overlay)
+    est_pos = history.estimated_target_positions
+    valid = ~np.isnan(est_pos[:, 0])
+    if np.any(valid):
+        ax.plot(
+            est_pos[valid, 0], est_pos[valid, 1],
+            "r--", linewidth=1, alpha=0.5, label="Estimated Track",
+        )
 
     # Start markers
     ax.plot(tgt_pos[0, 0], tgt_pos[0, 1], "ro", markersize=10)
@@ -40,6 +51,20 @@ def plot_trajectories(
             sensor_position[0], sensor_position[1],
             "gD", markersize=10, label="Sensor",
         )
+
+    if launch_position is not None:
+        if sensor_position is None or distance(launch_position, sensor_position) > 1.0:
+            ax.plot(
+                launch_position[0], launch_position[1],
+                "b+", markersize=12, markeredgewidth=2, label="Launch Site",
+            )
+
+    if protected_asset_position is not None:
+        if sensor_position is None or distance(protected_asset_position, sensor_position) > 1.0:
+            ax.plot(
+                protected_asset_position[0], protected_asset_position[1],
+                "g*", markersize=14, label="Protected Asset",
+            )
 
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
@@ -137,6 +162,10 @@ def print_summary(history: SimHistory, engagement: EngagementManager) -> None:
     print(f"  Result:          {engagement.result.name}")
     print(f"  Duration:        {final.time:.1f} s")
     print(f"  Final range:     {final_range:.1f} m")
+    if engagement.terminal_handover_range > 0:
+        print(f"  Handover range:  {engagement.terminal_handover_range:.0f} m")
+    if engagement.stern_offset > 0:
+        print(f"  Stern offset:    {engagement.stern_offset:.0f} m")
     print("  Phase log:")
     for t, phase in engagement.phase_log:
         print(f"    {t:6.1f}s → {phase.name}")

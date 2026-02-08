@@ -12,9 +12,9 @@ from interceptor_sim.guidance.midcourse import command_guidance
 from interceptor_sim.guidance.proportional_nav import proportional_navigation
 from interceptor_sim.guidance.pure_pursuit import pure_pursuit
 from interceptor_sim.models.interceptor import Interceptor, InterceptorState
-from interceptor_sim.models.sensor import Sensor
+from interceptor_sim.models.sensor import Sensor, SensorMeasurement
 from interceptor_sim.models.target import Target
-from interceptor_sim.utils.geometry import Vec2, bearing
+from interceptor_sim.utils.geometry import Vec2, bearing, distance
 
 
 class Phase(Enum):
@@ -48,6 +48,9 @@ class EngagementManager:
         sensor_position: Vec2,
         terminal_guidance: str = "proportional_nav",
         nav_gain: float = 4.0,
+        terminal_handover_range: float = 100.0,
+        stern_offset: float = 0.0,
+        approach_blend_range: float = 500.0,
         rng: np.random.Generator | None = None,
     ) -> None:
         self.target = target
@@ -56,6 +59,9 @@ class EngagementManager:
         self.sensor_position = np.asarray(sensor_position, dtype=np.float64)
         self.terminal_guidance = terminal_guidance
         self.nav_gain = nav_gain
+        self.terminal_handover_range = terminal_handover_range
+        self.stern_offset = stern_offset
+        self.approach_blend_range = approach_blend_range
         self.rng = rng or np.random.default_rng()
 
         self.phase = Phase.SEARCH
@@ -65,6 +71,11 @@ class EngagementManager:
 
         self.phase_log: list[tuple[float, Phase]] = []
         self._phase_start_time = 0.0
+
+        # Noisy estimates updated each midcourse step
+        self.estimated_target_pos: Vec2 | None = None
+        self.estimated_target_vel: Vec2 | None = None
+        self.latest_measurement: SensorMeasurement | None = None
 
     def step(self, t: float, dt: float) -> None:
         """Advance engagement logic by one timestep."""
@@ -127,17 +138,32 @@ class EngagementManager:
             self._transition(Phase.COMPLETE, t)
             return
 
-        # Command guidance from ground sensor
+        # Noisy measurement from surveillance sensor
+        measurement = self.surveillance_sensor.measure(
+            self.sensor_position,
+            self.target.position,
+            self.target.speed,
+            self.target.heading,
+            rng=self.rng,
+        )
+        self.latest_measurement = measurement
+        self.estimated_target_pos = measurement.estimated_position.copy()
+        self.estimated_target_vel = measurement.estimated_velocity.copy()
+
+        # Command guidance with stern attack
         cmd_heading = command_guidance(
-            self.sensor_position, self.target.position, self.interceptor.position
+            self.sensor_position,
+            self.estimated_target_pos,
+            self.interceptor.position,
+            estimated_target_vel=self.estimated_target_vel,
+            stern_offset=self.stern_offset,
+            approach_blend_range=self.approach_blend_range,
         )
         self.interceptor.apply_guidance(cmd_heading, dt)
 
-        # Check for seeker acquisition
-        seeker_acquires = self.interceptor.seeker.try_detect(
-            self.interceptor.position, self.target.position, rng=self.rng
-        )
-        if seeker_acquires:
+        # Deterministic handover: transition when estimated range <= threshold
+        est_range = distance(self.interceptor.position, self.estimated_target_pos)
+        if est_range <= self.terminal_handover_range:
             self.interceptor.state = InterceptorState.TERMINAL
             self._transition(Phase.TERMINAL, t)
 

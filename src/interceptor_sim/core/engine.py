@@ -21,6 +21,8 @@ class SimState:
     phase: Phase
     target_active: bool
     interceptor_speed: float
+    estimated_target_pos: np.ndarray | None = None
+    estimated_target_vel: np.ndarray | None = None
 
 
 @dataclass
@@ -43,6 +45,17 @@ class SimHistory:
     @property
     def interceptor_positions(self) -> np.ndarray:
         return np.array([s.interceptor_pos for s in self.states])
+
+    @property
+    def estimated_target_positions(self) -> np.ndarray:
+        """Estimated target positions; NaN where no estimate is available."""
+        result = []
+        for s in self.states:
+            if s.estimated_target_pos is not None:
+                result.append(s.estimated_target_pos)
+            else:
+                result.append(np.array([np.nan, np.nan]))
+        return np.array(result)
 
 
 class SimulationEngine:
@@ -67,14 +80,15 @@ class SimulationEngine:
         self.history = SimHistory()
         self.time = 0.0
 
-    def step(self) -> bool:
-        """Run one simulation timestep. Returns False when sim is complete."""
-        if self.time >= self.max_time:
-            return False
-        if self.engagement.phase == Phase.COMPLETE:
-            return False
+    def _record_state(self) -> None:
+        """Record current simulation state including estimated target position."""
+        est_pos = None
+        est_vel = None
+        if self.engagement.estimated_target_pos is not None:
+            est_pos = self.engagement.estimated_target_pos.copy()
+        if self.engagement.estimated_target_vel is not None:
+            est_vel = self.engagement.estimated_target_vel.copy()
 
-        # Record state
         self.history.record(
             SimState(
                 time=self.time,
@@ -83,8 +97,20 @@ class SimulationEngine:
                 phase=self.engagement.phase,
                 target_active=self.target.active,
                 interceptor_speed=self.interceptor.speed,
+                estimated_target_pos=est_pos,
+                estimated_target_vel=est_vel,
             )
         )
+
+    def step(self) -> bool:
+        """Run one simulation timestep. Returns False when sim is complete."""
+        if self.time >= self.max_time:
+            return False
+        if self.engagement.phase == Phase.COMPLETE:
+            return False
+
+        # Record state
+        self._record_state()
 
         # Update entities
         self.target.update(self.dt)
@@ -102,14 +128,5 @@ class SimulationEngine:
             pass
 
         # Record final state
-        self.history.record(
-            SimState(
-                time=self.time,
-                target_pos=self.target.position.copy(),
-                interceptor_pos=self.interceptor.position.copy(),
-                phase=self.engagement.phase,
-                target_active=self.target.active,
-                interceptor_speed=self.interceptor.speed,
-            )
-        )
+        self._record_state()
         return self.history

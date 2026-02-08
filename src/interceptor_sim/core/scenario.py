@@ -42,11 +42,16 @@ def build_from_scenario(
 
     # Surveillance sensor
     sensor_cfg = scenario["surveillance_sensor"]
+    noise_cfg = sensor_cfg.get("noise", {})
     surveillance_sensor = Sensor(
         max_range=sensor_cfg["max_range"],
         field_of_regard=np.radians(sensor_cfg.get("field_of_regard_deg", 360)),
         pd_at_max_range=sensor_cfg.get("pd_at_max_range", 0.3),
         classification_accuracy=sensor_cfg.get("classification_accuracy", 0.8),
+        range_noise_fraction=noise_cfg.get("range_noise_fraction", 0.0),
+        bearing_noise_deg=noise_cfg.get("bearing_noise_deg", 0.0),
+        speed_noise_fraction=noise_cfg.get("speed_noise_fraction", 0.0),
+        heading_noise_deg=noise_cfg.get("heading_noise_deg", 0.0),
     )
     sensor_position = np.array(
         sensor_cfg.get("position", [0.0, 0.0]), dtype=np.float64
@@ -70,6 +75,9 @@ def build_from_scenario(
         name=int_cfg.get("name", "interceptor"),
     )
 
+    # Capture launch position before simulation moves the interceptor
+    launch_position = interceptor.position.copy()
+
     # Engagement manager
     eng_cfg = scenario.get("engagement", {})
     engagement = EngagementManager(
@@ -79,6 +87,9 @@ def build_from_scenario(
         sensor_position=sensor_position,
         terminal_guidance=eng_cfg.get("terminal_guidance", "proportional_nav"),
         nav_gain=eng_cfg.get("nav_gain", 4.0),
+        terminal_handover_range=eng_cfg.get("terminal_handover_range", 100.0),
+        stern_offset=eng_cfg.get("stern_offset", 0.0),
+        approach_blend_range=eng_cfg.get("approach_blend_range", 500.0),
         rng=rng,
     )
 
@@ -99,6 +110,8 @@ def build_from_scenario(
         "sensor_position": sensor_position,
         "engagement": engagement,
         "engine": engine,
+        "launch_position": launch_position,
+        "protected_asset_position": sensor_position.copy(),
     }
 
     return engine, metadata

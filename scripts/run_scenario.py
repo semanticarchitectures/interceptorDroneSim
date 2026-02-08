@@ -34,7 +34,9 @@ def main(argv: list[str] | None = None) -> None:
     engine, meta = build_from_scenario(scenario, seed=args.seed)
 
     if args.live:
-        display = LiveDisplay(engine)
+        display = LiveDisplay(
+            engine, launch_position=meta.get("launch_position")
+        )
         display.run()
     else:
         history = engine.run()
@@ -44,7 +46,12 @@ def main(argv: list[str] | None = None) -> None:
         print_summary(history, meta["engagement"])
 
         if not args.no_plots:
-            plot_trajectories(history, sensor_position=meta["sensor_position"])
+            plot_trajectories(
+                history,
+                sensor_position=meta["sensor_position"],
+                launch_position=meta.get("launch_position"),
+                protected_asset_position=meta.get("protected_asset_position"),
+            )
             plot_range_timeline(history)
             plot_phase_timeline(history, meta["engagement"])
 

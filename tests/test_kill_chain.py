@@ -68,6 +68,11 @@ class TestEngagementManager:
             max_range=5000.0,
             pd_at_max_range=0.99,  # high Pd for deterministic tests
             classification_accuracy=0.99,
+            # zero noise for predictable tests
+            range_noise_fraction=0.0,
+            bearing_noise_deg=0.0,
+            speed_noise_fraction=0.0,
+            heading_noise_deg=0.0,
         )
         interceptor = Interceptor(
             position=(0.0, 0.0),
@@ -80,6 +85,9 @@ class TestEngagementManager:
             interceptor=interceptor,
             surveillance_sensor=sensor,
             sensor_position=(0.0, 0.0),
+            terminal_handover_range=100.0,
+            stern_offset=0.0,
+            approach_blend_range=500.0,
             rng=np.random.default_rng(seed),
         )
         return target, interceptor, em
@@ -114,3 +122,42 @@ class TestEngagementManager:
                 break
         assert em.phase == Phase.COMPLETE
         assert em.result in (EngagementResult.HIT, EngagementResult.MISS)
+
+    def test_deterministic_handover(self):
+        """Handover should occur when estimated range <= terminal_handover_range."""
+        target, interceptor, em = self._make_engagement(seed=1)
+        dt = 0.1
+        entered_terminal = False
+        for i in range(2000):
+            t = i * dt
+            target.update(dt)
+            interceptor.update(dt)
+            em.step(t, dt)
+            if em.phase == Phase.TERMINAL:
+                entered_terminal = True
+                break
+            if em.phase == Phase.COMPLETE:
+                break
+        assert entered_terminal
+
+    def test_estimated_position_stored(self):
+        """During midcourse, estimated_target_pos should be populated."""
+        target, interceptor, em = self._make_engagement(seed=1)
+        dt = 0.1
+        # Run until midcourse
+        for i in range(2000):
+            t = i * dt
+            target.update(dt)
+            interceptor.update(dt)
+            em.step(t, dt)
+            if em.phase == Phase.MIDCOURSE:
+                # Step once more to get a measurement
+                target.update(dt)
+                interceptor.update(dt)
+                em.step(t + dt, dt)
+                break
+        # With zero noise, estimated pos should equal true pos
+        assert em.estimated_target_pos is not None
+        np.testing.assert_allclose(
+            em.estimated_target_pos, target.position, atol=1.0
+        )
