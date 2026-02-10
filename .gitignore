@@ -9,3 +9,4 @@ build/
 .ruff_cache/
 *.so
 .DS_Store
+sim_output.gif
