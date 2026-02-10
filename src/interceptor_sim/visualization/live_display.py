@@ -142,6 +142,11 @@ class LiveDisplay:
             self.phase_text,
         )
 
+    def _total_frames(self) -> int:
+        """Estimate total animation frames from sim duration."""
+        total_steps = int(self.engine.max_time / self.engine.dt)
+        return total_steps // self.steps_per_frame + 1
+
     def run(self) -> None:
         """Start the live animation (blocking)."""
         self._anim = animation.FuncAnimation(
@@ -153,3 +158,22 @@ class LiveDisplay:
             cache_frame_data=False,
         )
         plt.show()
+
+    def save(self, path: str, fps: int = 20, dpi: int = 150) -> None:
+        """Save the animation to a video file (MP4 via ffmpeg or GIF)."""
+        self._anim = animation.FuncAnimation(
+            self.fig,
+            self._update_frame,
+            init_func=self._init_animation,
+            frames=self._total_frames(),
+            interval=self.interval_ms,
+            blit=False,
+            cache_frame_data=False,
+            repeat=False,
+        )
+        if path.endswith(".gif"):
+            writer = animation.PillowWriter(fps=fps)
+        else:
+            writer = animation.FFMpegWriter(fps=fps)
+        self._anim.save(path, writer=writer, dpi=dpi)
+        print(f"Saved animation to {path}")
