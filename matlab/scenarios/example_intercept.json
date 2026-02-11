@@ -1,0 +1,47 @@
+{
+  "target": {
+    "name": "hostile_uav",
+    "position": [3000.0, 1000.0],
+    "speed": 30.0,
+    "rcs": 0.01,
+    "waypoints": [[1500.0, 500.0], [0.0, 0.0]]
+  },
+  "surveillanceSensor": {
+    "position": [0.0, 0.0],
+    "max_range": 5000.0,
+    "field_of_regard_deg": 360.0,
+    "pd_at_max_range": 0.3,
+    "classification_accuracy": 0.85,
+    "noise": {
+      "range_noise_fraction": 0.015,
+      "bearing_noise_deg": 2.0,
+      "speed_noise_fraction": 0.02,
+      "heading_noise_deg": 3.0
+    }
+  },
+  "interceptor": {
+    "name": "defender_1",
+    "position": [200.0, -300.0],
+    "max_speed": 80.0,
+    "max_turn_rate_deg": 25.0,
+    "kill_radius": 5.0,
+    "max_flight_time": 90.0,
+    "seeker": {
+      "max_range": 400.0,
+      "field_of_regard_deg": 60.0,
+      "pd_at_max_range": 0.5
+    }
+  },
+  "engagement": {
+    "terminal_guidance": "proportional_nav",
+    "nav_gain": 4.0,
+    "terminal_handover_range": 100.0,
+    "stern_offset": 200.0,
+    "approach_blend_range": 500.0
+  },
+  "simulation": {
+    "dt": 0.1,
+    "max_time": 150.0,
+    "seed": 42
+  }
+}
