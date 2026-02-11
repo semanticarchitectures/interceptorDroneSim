@@ -4,6 +4,7 @@ function scenario = ScenarioLoader(inputArg)
 
     if nargin < 1 || isempty(inputArg)
         scenario = sim.DefaultScenario();
+        scenario = sim.ValidateScenario(scenario);
         return;
     end
 
@@ -12,7 +13,7 @@ function scenario = ScenarioLoader(inputArg)
     else
         path = string(inputArg);
         if ~isfile(path)
-            error("Scenario file not found: %s", path);
+            error("sim:ScenarioLoader:FileNotFound", "Scenario file not found: %s", path);
         end
 
         [~, ~, ext] = fileparts(path);
@@ -24,13 +25,15 @@ function scenario = ScenarioLoader(inputArg)
                 if exist("yamlread", "file") == 2
                     rawScenario = yamlread(path);
                 else
-                    error(["YAML loading requires yamlread. ", ...
+                    error("sim:ScenarioLoader:YamlUnsupported", ["YAML loading requires yamlread. ", ...
                         "Use JSON input or install YAML support in your MATLAB environment."]);
                 end
             otherwise
-                error("Unsupported scenario extension: %s", ext);
+                error("sim:ScenarioLoader:UnsupportedExtension", "Unsupported scenario extension: %s", ext);
         end
     end
+
+    rawScenario = localNormalizeAliases(rawScenario);
 
     scenario = sim.DefaultScenario();
 
@@ -39,8 +42,6 @@ function scenario = ScenarioLoader(inputArg)
     end
     if isfield(rawScenario, "surveillanceSensor")
         scenario.surveillanceSensor = localMerge(scenario.surveillanceSensor, rawScenario.surveillanceSensor);
-    elseif isfield(rawScenario, "surveillance_sensor")
-        scenario.surveillanceSensor = localMerge(scenario.surveillanceSensor, rawScenario.surveillance_sensor);
     end
     if isfield(rawScenario, "interceptor")
         scenario.interceptor = localMerge(scenario.interceptor, rawScenario.interceptor);
@@ -51,6 +52,8 @@ function scenario = ScenarioLoader(inputArg)
     if isfield(rawScenario, "simulation")
         scenario.simulation = localMerge(scenario.simulation, rawScenario.simulation);
     end
+
+    scenario = sim.ValidateScenario(scenario);
 end
 
 function out = localMerge(base, update)
@@ -63,5 +66,11 @@ function out = localMerge(base, update)
         else
             out.(f) = update.(f);
         end
+    end
+end
+
+function rawScenario = localNormalizeAliases(rawScenario)
+    if isfield(rawScenario, "surveillance_sensor") && ~isfield(rawScenario, "surveillanceSensor")
+        rawScenario.surveillanceSensor = rawScenario.surveillance_sensor;
     end
 end
