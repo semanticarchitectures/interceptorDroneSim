@@ -74,11 +74,20 @@ function [history, context] = SimulationRunner(scenarioInput, varargin)
     interceptorSpeed = interceptorSpeed(1:k);
     targetActive = targetActive(1:k);
 
-    phase = categorical(engagementState.phaseNames(phaseIdx), engagementState.phaseNames, engagementState.phaseNames);
-    result = categorical(engagementState.resultNames(resultIdx), engagementState.resultNames, engagementState.resultNames);
+    % Force all row variables to be N-by-1 or N-by-M arrays with matching N.
+    times = reshape(times, [], 1);
+    phaseIdx = reshape(phaseIdx, [], 1);
+    resultIdx = reshape(resultIdx, [], 1);
+    interceptorSpeed = reshape(interceptorSpeed, [], 1);
+    targetActive = reshape(targetActive, [], 1);
+
+    phaseLabels = reshape(engagementState.phaseNames(phaseIdx), [], 1);
+    resultLabels = reshape(engagementState.resultNames(resultIdx), [], 1);
+    phase = categorical(phaseLabels, engagementState.phaseNames, engagementState.phaseNames);
+    result = categorical(resultLabels, engagementState.resultNames, engagementState.resultNames);
 
     history = timetable(seconds(times), targetPos, interceptorPos, estTargetPos, estTargetVel, phase, result, interceptorSpeed, targetActive, ...
-        'VariableNames', {"TargetPos", "InterceptorPos", "EstTargetPos", "EstTargetVel", "Phase", "Result", "InterceptorSpeed", "TargetActive"});
+        'VariableNames', {'TargetPos', 'InterceptorPos', 'EstTargetPos', 'EstTargetVel', 'Phase', 'Result', 'InterceptorSpeed', 'TargetActive'});
     history.TimeSeconds = times;
 
     context = struct();

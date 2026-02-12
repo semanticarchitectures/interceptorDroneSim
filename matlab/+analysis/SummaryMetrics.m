@@ -11,22 +11,13 @@ function metrics = SummaryMetrics(history)
     metrics.finalPhase = string(history.Phase(end));
     metrics.finalResult = string(history.Result(end));
 
-    fprintf('----------------------------------------
-');
-    fprintf('ENGAGEMENT SUMMARY
-');
-    fprintf('----------------------------------------
-');
-    fprintf('Duration:      %.1f s
-', metrics.duration);
-    fprintf('Final range:   %.1f m
-', metrics.finalRange);
-    fprintf('Minimum range: %.1f m
-', metrics.minRange);
-    fprintf('Final phase:   %s
-', metrics.finalPhase);
-    fprintf('Final result:  %s
-', metrics.finalResult);
-    fprintf('----------------------------------------
-');
+    fprintf('----------------------------------------\n');
+    fprintf('ENGAGEMENT SUMMARY\n');
+    fprintf('----------------------------------------\n');
+    fprintf('Duration:      %.1f s\n', metrics.duration);
+    fprintf('Final range:   %.1f m\n', metrics.finalRange);
+    fprintf('Minimum range: %.1f m\n', metrics.minRange);
+    fprintf('Final phase:   %s\n', metrics.finalPhase);
+    fprintf('Final result:  %s\n', metrics.finalResult);
+    fprintf('----------------------------------------\n');
 end
